@@ -102,6 +102,11 @@ class ConnectionTest < Test::Unit::TestCase
     assert authenticated[connection.url_for('/foo', :authenticated => true)]
     assert !authenticated[connection.url_for('/foo', :authenticated => false)]
   end
+
+  def test_url_for_with_response_override_options
+    connection = Connection.new(:access_key_id => '123', :secret_access_key => 'abc', :port => 80)
+    assert_match %r(^http://s3\.amazonaws\.com/foo\?AWSAccessKeyId=.*&Expires=.*&response-content-disposition=attachment;filename=foo.bar), connection.url_for('/foo', {'response-content-disposition' => 'attachment;filename=foo.bar'})
+  end
   
   def test_connecting_through_a_proxy
     connection = nil

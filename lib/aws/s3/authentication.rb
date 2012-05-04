@@ -62,7 +62,10 @@ module AWS
     
           def canonical_string            
             options = {}
-            options[:expires] = expires if expires?
+            if query_string?
+              options[:expires] = expires
+              options.merge!(response_overrides)
+            end
             CanonicalString.new(request, options)
           end
           memoized :canonical_string
@@ -77,7 +80,7 @@ module AWS
             !@options[:url_encode].nil?
           end
           
-          def expires?
+          def query_string?
             is_a? QueryString
           end
           
@@ -99,6 +102,21 @@ module AWS
       # More details about the various authentication schemes can be found in the docs for its containing module, Authentication.
       class QueryString < Signature #:nodoc:
         constant :DEFAULT_EXPIRY, 300 # 5 minutes
+        constant :OVERRIDE_OPTIONS, ["response-content-type",
+                                     "response-content-language",
+                                     "response-expires",
+                                     "reponse-cache-control",
+                                     "response-content-disposition",
+                                     "response-content-encoding"]
+
+        class << self
+          def slice_override_options(hash)
+            options = {}
+            OVERRIDE_OPTIONS.each { |k| options[k] = hash[k] if hash.has_key?(k) }
+            options
+          end
+        end
+
         def initialize(*args)
           super
           options[:url_encode] = true
@@ -117,6 +135,19 @@ module AWS
             return options[:expires] if options[:expires]
             date.to_i + expires_in
           end
+
+          def response_overrides
+            self.class.slice_override_options(options)
+          end
+
+          def response_overrides_str
+            resp = []
+            resp_options = response_overrides
+            resp_options.keys.sort.each do |param|
+              resp << "#{param}=#{Connection.prepare_path(resp_options[param])}"
+            end
+            resp.length > 0 ? "&" + resp.join("&") : ""
+          end
           
           def expires_in
             options.has_key?(:expires_in) ? Integer(options[:expires_in]) : DEFAULT_EXPIRY
@@ -124,7 +155,7 @@ module AWS
           
           # Keep in alphabetical order
           def build
-            "AWSAccessKeyId=#{access_key_id}&Expires=#{expires}&Signature=#{encoded_canonical}"
+            "AWSAccessKeyId=#{access_key_id}&Expires=#{expires}#{response_overrides_str}&Signature=#{encoded_canonical}"
           end
       end
       
@@ -174,6 +205,7 @@ module AWS
               self << "\n"
             end
             self << path
+            self << response_overrides
           end
       
           def initialize_headers
@@ -210,6 +242,15 @@ module AWS
           
           def extract_significant_parameter
             request.path[/[&?](acl|torrent|logging)(?:&|=|$)/, 1]
+          end
+
+          def response_overrides
+            resp = []
+            resp_options = QueryString.slice_override_options(@options)
+            resp_options.keys.sort.each do |param|
+              resp << "#{param}=#{resp_options[param]}" # don't encode the values when signing
+            end
+            resp.length > 0 ? "?" + resp.join("&") : ""
           end
           
           def only_path
