@@ -43,6 +43,13 @@ module AWS #:nodoc:
   module S3
     constant :DEFAULT_HOST, 's3.amazonaws.com'
     
+    # See: http://docs.amazonwebservices.com/AmazonS3/latest/dev/index.html?RequestEndpoints.html
+    ENDPOINTS = {
+      :us     => 's3-us-west-1.amazonaws.com', 
+      :asia   => 's3-ap-southeast-1.amazonaws.com', 
+      :europe => 's3-eu-west-1.amazonaws.com'
+    }
+    
     # AWS::S3::Base is the abstract super class of all classes who make requests against S3, such as the built in
     # Service, Bucket and S3Object classes. It provides methods for making requests, inferring or setting response classes,
     # processing request options, and accessing attributes from S3's response data.

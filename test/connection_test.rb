@@ -212,6 +212,23 @@ class ConnectionOptionsTest < Test::Unit::TestCase
     assert options.connecting_through_proxy?
   end
   
+  def test_server_and_region_settings_cant_live_together
+    assert_raises(ArgumentError) do
+      generate_options(:region => :europe, :server => "example.org")
+    end
+  end
+  
+  def test_server_setting_is_extracted_from_region
+    options = generate_options(:region => :europe)
+    assert_equal ENDPOINTS[:europe], options[:server]
+  end
+  
+  def test_region_is_a_valid_s3_endpoint
+    assert_raises(ArgumentError) do
+      generate_options(:region => :antartica)
+    end
+  end
+  
   private
     def assert_key_transfered(key, value, options)
       assert_equal value, options[key]

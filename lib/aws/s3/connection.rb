@@ -183,6 +183,9 @@ module AWS
           #
           # * <tt>:server</tt> - The server to make requests to. You can use this to specify your bucket in the subdomain,
           # or your own domain's cname if you are using virtual hosted buckets. Defaults to <tt>s3.amazonaws.com</tt>.
+          # * <tt>:region</tt> - The region from which to take the default server. You can use this to ovverride the default
+          # server if you used a regional bucket from <tt>:europe</tt>, <tt>:asia</tt> or <tt>:us</tt>. This can't be used 
+          # together with the <tt>:server</tt> setting. Defaults to <tt>nil</tt>.
           # * <tt>:port</tt> - The port to the requests should be made on. Defaults to 80 or 443 if the <tt>:use_ssl</tt>
           # argument is set.
           # * <tt>:use_ssl</tt> - Whether requests should be made over SSL. If set to true, the <tt>:port</tt> argument
@@ -251,12 +254,12 @@ module AWS
       end
         
       class Options < Hash #:nodoc:
-        VALID_OPTIONS = [:access_key_id, :secret_access_key, :server, :port, :use_ssl, :persistent, :proxy].freeze
+        VALID_OPTIONS = [:access_key_id, :secret_access_key, :server, :region, :port, :use_ssl, :persistent, :proxy].freeze
         
         def initialize(options = {})
           super()
           validate(options)
-          replace(:server => DEFAULT_HOST, :port => (options[:use_ssl] ? 443 : 80))
+          replace(:server => options[:region] ? ENDPOINTS[options[:region]] : DEFAULT_HOST, :port => (options[:use_ssl] ? 443 : 80))
           merge!(options)
         end
 
@@ -273,6 +276,8 @@ module AWS
             invalid_options = options.keys - VALID_OPTIONS
             raise InvalidConnectionOption.new(invalid_options) unless invalid_options.empty?
             raise ArgumentError, "Missing proxy settings. Must specify at least :host." if options[:proxy] && !options[:proxy][:host]
+            raise ArgumentError, "Ambiguous server/region option: please don't use :server and :region options together." if options[:server] && options[:region]
+            raise ArgumentError, "Bad region: please use one of #{ENDPOINTS.keys.map(&:inspect).join(', ')}." if options[:region] && !ENDPOINTS.key?(options[:region])
           end
       end
     end
